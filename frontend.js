@@ -1,68 +1,85 @@
 let balance = 0;
 
-document.getElementById("spin-button").addEventListener("click", spin);
+document.getElementById('spin-button').addEventListener('click', spin);
+document.getElementById('deposit-button').addEventListener('click', deposit);
 
-function spin() {
-  const deposit = parseInt(document.getElementById("deposit").value);
-  const lines = parseInt(document.getElementById("lines").value);
-  const bet = parseInt(document.getElementById("bet").value);
+async function spin() {
+    const lines = parseInt(document.getElementById('lines').value);
+    const bet = parseInt(document.getElementById('bet').value);
 
-  if (isNaN(deposit) || isNaN(lines) || isNaN(bet)) {
-    showMessage("Please enter valid numbers for all fields.");
-    return;
-  }
+    if (isNaN(lines) || isNaN(bet)) {
+        showMessage('Please enter valid numbers for all fields.');
+        return;
+    }
 
-  if (balance === 0) {
-    balance = deposit;
-  }
+    if (bet * lines > balance) {
+        showMessage('Insufficient balance for this bet. Please deposit more money.');
+        showDepositOption();
+        return;
+    }
 
-  if (bet * lines > balance) {
-    showMessage("Insufficient balance for this bet.");
-    return;
-  }
+    try {
+        const response = await fetch('http://localhost:3000/spin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ bet, lines }),
+        });
 
-  const result = simulateBackendResponse(lines, bet);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
 
-  updateSlotMachine(result.rows);
-  balance += result.winnings - bet * lines;
-  showMessage(`You won $${result.winnings}!`);
-  updateBalance();
+        const result = await response.json();
+
+        updateSlotMachine(result.rows);
+        balance += result.winnings - (bet * lines);
+        showMessage(`You won $${result.winnings}!`);
+        updateBalance();
+        hideDepositOption();
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('An error occurred. Please try again.');
+    }
 }
 
-function simulateBackendResponse(lines, bet) {
-  const symbols = ["A", "B", "C", "D"];
-  const rows = [];
-  for (let i = 0; i < 3; i++) {
-    rows.push([]);
-    for (let j = 0; j < 3; j++) {
-      rows[i].push(symbols[Math.floor(Math.random() * symbols.length)]);
+function deposit() {
+    const depositAmount = parseInt(document.getElementById('deposit-amount').value);
+    
+    if (isNaN(depositAmount) || depositAmount <= 0) {
+        showMessage('Please enter a valid deposit amount.');
+        return;
     }
-  }
 
-  let winnings = 0;
-  for (let i = 0; i < lines; i++) {
-    if (rows[i][0] === rows[i][1] && rows[i][1] === rows[i][2]) {
-      winnings += bet * (["A", "B", "C", "D"].indexOf(rows[i][0]) + 2);
-    }
-  }
-
-  return { rows, winnings };
+    balance += depositAmount;
+    updateBalance();
+    showMessage(`Successfully deposited $${depositAmount}.`);
+    hideDepositOption();
 }
 
 function updateSlotMachine(rows) {
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      document.getElementById(`slot${i * 3 + j + 1}`).textContent = rows[i][j];
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            document.getElementById(`slot${i*3 + j + 1}`).textContent = rows[i][j];
+        }
     }
-  }
 }
 
 function showMessage(msg) {
-  document.getElementById("message").textContent = msg;
+    document.getElementById('message').textContent = msg;
 }
 
 function updateBalance() {
-  document.getElementById("balance").textContent = `Balance: $${balance}`;
+    document.getElementById('balance').textContent = `Balance: $${balance}`;
+}
+
+function showDepositOption() {
+    document.getElementById('deposit-container').style.display = 'block';
+}
+
+function hideDepositOption() {
+    document.getElementById('deposit-container').style.display = 'none';
 }
 
 updateBalance();
